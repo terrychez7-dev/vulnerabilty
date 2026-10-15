@@ -233,7 +233,7 @@ export default function Dashboard({ rows, days, since, initialArea, initialCve, 
               })}
               {!shown.length && (
                 <tr>
-                  <td colSpan={9} className="mut">
+                  <td colSpan={area === "all" ? 10 : 9} className="mut">
                     조건에 맞는 항목이 없습니다. 기간을 늘리거나 영역을 바꿔 보세요.
                   </td>
                 </tr>
