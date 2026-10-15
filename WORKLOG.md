@@ -1,9 +1,9 @@
 # 작업 기록: KEV 인프라 취약점 대시보드
 
-- 작성일: 2026-10-15
-- 기준 문서: `PRD.md` (v1.0 초안)
+- 작성일: 2026-10-15 (최종 수정 2026-10-16, 6장 추가)
+- 기준 문서: `PRD.md` (v1.1)
 - 프로젝트 경로: `/Users/teslla/Desktop/CLAUDE/a/kev-dashboard-vercel`
-- 원격 저장소: https://github.com/terrychez7-dev/vulnerabilty (push 대기 중)
+- 원격 저장소: https://github.com/terrychez7-dev/vulnerabilty (push 완료)
 
 ## 1. 요약
 
@@ -16,7 +16,8 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 | 보안 점검 (`npm audit`) | 취약점 0건 |
 | KEV 실데이터 수집 | 성공 (카탈로그 2026.10.14, 1,745건) |
 | CVE 보강 실데이터 | 성공 (CVE-2024-3400 → CVSS 10, 네트워크 / 없는 CVE → `not_found`) |
-| Supabase 연동, Claude 요약, Vercel Cron | **미검증** (키가 없어 실행하지 못함) |
+| Supabase 연동 | 2026-10-16 검증 완료 (6장) |
+| Claude 요약, Vercel Cron | **미검증** (Claude 키 미입력, Vercel 미배포) |
 
 ## 2. PRD 대비 보완 내용
 
@@ -103,29 +104,80 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 | 커밋 `63cfbba` | KEV 인프라 취약점 대시보드 v1 구현 (23개 파일) |
 | 원격 연결 | `origin` = https://github.com/terrychez7-dev/vulnerabilty.git |
 | 커밋 `69cc0c6` | 원격의 자동 생성 README 커밋(`fa325f3`)을 이력 보존하며 병합, 프로젝트 README 유지 |
-| push | **실패**: 이 Mac에 GitHub 인증 정보가 없음 |
+| push (2026-10-15) | **실패**: 이 Mac에 GitHub 인증 정보가 없음 → 2026-10-16 해결 (6.1) |
 
-### push 방법
+## 5. 남은 일 (2026-10-16 기준)
 
-```bash
-cd /Users/teslla/Desktop/CLAUDE/a/kev-dashboard-vercel
-git config --global credential.helper osxkeychain
-git push -u origin main
-```
-
-- Username: `terrychez7-dev`
-- Password: GitHub Personal Access Token (이 저장소에 `Contents: Read and write` 권한)
-
-## 5. 남은 일
-
-1. **Node.js 설치**: 이 Mac의 Node는 v6.10.3이다. 프로젝트에는 20.9 이상이 필요하다. 검증할 때는 임시로 받은 Node 22를 썼고, 시스템에는 설치하지 않았다.
-2. **GitHub push**: 위 4장 방법으로 진행한다.
-3. **Supabase 구성 (M1)**:
-   - 프로젝트를 만든다 (서울 리전 권장).
-   - `supabase/migrations/001_kev_schema.sql`을 실행한다.
-   - `.env.local`에 키를 입력한다.
-4. **최초 백필과 검증 (M2)**:
-   - `npm install` → `npm run backfill` → `npm run dev` 순서로 실행한다.
-   - 건수, 분류, 요약 품질을 샘플링해 확인한다.
-5. **Vercel 배포 (M3)**: 저장소를 Import하고 환경변수를 등록한다. 이후 Cron이 실행되는지(매일 한국 시간 08:00) 확인한다.
+1. **Node.js 설치**: 이 Mac의 Node는 v6.10.3이다. 프로젝트에는 20.9 이상이 필요하다. 검증과 백필에는 임시로 받은 Node 22를 썼고, 시스템에는 설치하지 않았다.
+2. ~~GitHub push~~: 완료 (6.1)
+3. ~~Supabase 구성 (M1)~~: 완료 (6.2)
+4. **최초 백필과 검증 (M2)**: KEV 저장과 CVE 보강은 완료했다 (6.3). 남은 일은 `ANTHROPIC_API_KEY`를 넣고 `npm run backfill`로 한국어 요약을 만든 뒤 품질을 샘플링하는 것이다.
+5. **Vercel 배포 (M3)**: 저장소를 Import하고 환경변수를 등록한다. 이후 Cron이 실행되는지(매일 한국 시간 08:00) 확인한다. 절차는 `todo.md`에 있다.
 6. **PRD 미결 사항 (12장)**: Vercel 플랜, 요약 모델과 `SUMMARY_DAYS`, 운영 도메인을 결정한다.
+
+## 6. 2026-10-16 작업
+
+### 6.1 Git 설정과 GitHub push
+
+- 전역 git 설정을 `user.name = terrychez7-dev`로 바꿨다. 이메일과 기본 브랜치(`main`)는 그대로다.
+- 사용자가 터미널에서 토큰으로 push했지만 `rejected (fetch first)`로 거부됐다.
+  - 원인: GitHub 저장소가 2026-10-15 23:48 KST에 다시 만들어져 있었다. 원격에는 부모가 없는 새 초기 커밋 `38b7ab7`(README 2줄) 하나만 있었다.
+  - 이 README 내용은 기존 `fa325f3`과 같아서, 덮어써도 잃는 내용이 없었다.
+- 사용자 결정에 따라 `--force-with-lease=main:38b7ab7`로 강제 push했다. 그 사이 원격이 바뀌었다면 거부되도록 한 것이다.
+- 이후 push는 Keychain에 저장된 토큰으로 바로 된다.
+
+| 커밋 | 내용 |
+|---|---|
+| `ef7596b` | 목록 '결과 없음' 행이 전체 영역 보기(10열)에서 모든 열을 차지하도록 수정 |
+| `50320a0` | `WORKLOG.md` 추가 |
+| `ec2ab22` | CVE 보강 저장이 WAF에 막혀도 동기화가 멈추지 않도록 수정 (6.3) |
+
+### 6.2 Supabase 연결 확인 (M1)
+
+- 처음에는 `.env.local`의 `SUPABASE_URL`이 예시값(`xxxxxxxx`) 그대로였다. 사용자가 프로젝트 URL로 고쳤다.
+  - 처음 받은 주소는 조직(Organization) 페이지 주소라서 쓸 수 없었다.
+- 확인 결과:
+
+| 항목 | 결과 |
+|---|---|
+| 테이블 4개, 뷰 `kev_dashboard_v` | 읽기 키와 secret 키 모두 조회 성공 |
+| `sync_runs` 추가 컬럼 3개 | 있음 |
+| RLS: 읽기 키로 `sync_runs` insert 시도 | 차단 (`42501`) |
+
+- `CRON_SECRET`은 `openssl rand -hex 32`로 만들어 `.env.local`에 넣었다. Vercel에도 같은 값을 등록한다.
+
+### 6.3 최초 백필 (M2)과 WAF 차단 수정
+
+- 첫 실행은 `cve_enrichment 저장 실패`로 중단됐다 (`sync_runs` id 2, `error`).
+  - 응답이 Cloudflare 차단 페이지였다. Supabase 앞단 WAF가 요청 본문을 공격으로 판단한 것이다.
+  - 한 건씩 저장해 보니 CVE-2025-24893(XWiki) 하나만 막혔다. CVE 원문 설명 끝에 공격 재현 코드가 들어 있었다.
+- 수정 (`lib/sync.ts`):
+  - 200건 묶음 저장이 실패하면 한 건씩 저장한다.
+  - 그래도 막히는 항목은 `description`만 비우고, `error`에 "원문 설명 저장 차단(WAF)"을 남긴다.
+  - KEV 원문과 CVSS 정보는 정상으로 저장된다.
+- 진단용 임시 스크립트는 지웠다. 진단 중 정상 저장된 104건은 유지했고, XWiki 항목은 지운 뒤 새 코드로 다시 저장했다.
+- 재실행 결과 (`sync_runs` id 3, `ok`):
+
+| 항목 | 결과 |
+|---|---|
+| KEV 저장 | 1,745건 (카탈로그 2026.10.14) |
+| CVE 보강 (최근 365일) | 305건 모두 `ok`, CVSS 점수 305건 모두 있음 |
+| 한국어 요약 | 0건 (`ANTHROPIC_API_KEY` 없음: 요약 생략) |
+
+### 6.4 로컬 화면 확인
+
+`next dev`로 띄워 서버 렌더 결과를 확인했다.
+
+| 화면 | 결과 |
+|---|---|
+| 기본 (30일, 서버 OS·가상화) | 전체 신규 35건 중 4건, 원격 공격 가능 2건, CVSS 9.0 이상 1건 |
+| 365일, 전체 | 305건, 원격 공격 가능 255건, CVSS 9.0 이상 137건, 랜섬웨어 악용 30건 |
+| 90일, 네트워크 | 29건, 목록 29행 |
+
+- 응답 시간: 첫 요청 2.5초(개발 서버 첫 컴파일 포함), 이후 0.3~0.8초. 운영 환경 기준 N-05(2초 이내)는 배포 후 다시 확인한다.
+- '조치기한 경과'는 서버 HTML에서 '—'로 나온다. 오늘 날짜를 브라우저에서 계산하도록 만든 의도된 동작이다.
+
+### 6.5 문서
+
+- `todo.md`, `todo.txt`: Vercel 배포 절차를 할 일 목록으로 정리했다 (커밋하지 않음).
+- `PRD.md` v1.1: 미분류 비율 현행화(F-AREA-03), 일정 진행 상태(9장), WAF 차단 리스크(11장), 수정 이력을 반영했다.
