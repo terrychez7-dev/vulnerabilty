@@ -29,7 +29,8 @@ CISA KEV(실제 악용 확인 취약점)를 수집해 인프라 영역별로 보
 
 ## 로컬 환경 주의
 
-- 이 Mac의 시스템 Node는 v6이라 프로젝트를 실행할 수 없다(20.9 이상 필요). 검증할 때는 Node 22를 세션 임시 폴더에 받아 `PATH` 앞에 붙여 쓴다.
+- 이 Mac은 macOS 12(Intel)이고, 시스템 Node는 공식 설치 파일로 깐 v22.20.0이다 (`/usr/local/bin/node`). `npm` 명령은 프로젝트 폴더에서 바로 실행하면 된다.
+- Homebrew는 macOS 12용 패키지를 더 이상 제공하지 않아 `brew install node`가 소스 빌드 중 실패한다. Node를 올릴 때는 nodejs.org의 22.x `.pkg`를 쓴다 (Node 24 이상은 macOS 13.5 이상 필요).
 - 비밀값(Supabase secret 키, `CRON_SECRET`, `ANTHROPIC_API_KEY`)은 `.env.local`에만 둔다. 출력할 때는 앞 몇 글자만 보이게 가리고, 커밋하지 않는다.
 - Supabase 앞단 WAF가 공격 코드가 든 CVE 원문을 막을 수 있다. `lib/sync.ts`에서 한 건씩 재시도하는 방식으로 처리한다 (`WORKLOG.md` 6.3).
 - `next dev`를 실행하면 `AGENTS.md`의 Next.js 안내 블록이 다시 생성된다. 지우지 말고 그대로 둔다.

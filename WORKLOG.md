@@ -109,7 +109,7 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 
 ## 5. 남은 일 (2026-10-16 기준)
 
-1. **Node.js 설치**: 이 Mac의 Node는 v6.10.3이다. 프로젝트에는 20.9 이상이 필요하다. 검증과 백필에는 임시로 받은 Node 22를 썼고, 시스템에는 설치하지 않았다.
+1. ~~Node.js 설치~~: 완료 (6.7)
 2. ~~GitHub push~~: 완료 (6.1)
 3. ~~Supabase 구성 (M1)~~: 완료 (6.2)
 4. **최초 백필과 검증 (M2)**: KEV 저장과 CVE 보강은 완료했다 (6.3). 남은 일은 `ANTHROPIC_API_KEY`를 넣고 `npm run backfill`로 한국어 요약을 만든 뒤 품질을 샘플링하는 것이다.
@@ -202,3 +202,11 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 
 - 수동 실행이 통과했으므로 Vercel의 `CRON_SECRET`이 로컬 값과 같다는 것도 확인됐다.
 - Cron 등록 화면은 로그인이 필요해 확인하지 못했다. 첫 자동 실행은 2026-10-17 08:00 KST 예정이다.
+
+### 6.7 Node.js 22 설치
+
+- `brew install node`는 실패했다. 이 Mac은 macOS 12.7.6(Intel)인데, Homebrew가 이 버전용 미리 빌드된 패키지를 더 이상 제공하지 않는다(Tier 3). 그래서 의존 라이브러리 `simdutf`를 소스에서 빌드하다가 실패했다.
+- 대신 nodejs.org 공식 설치 파일 `node-v22.20.0.pkg`로 설치했다. 기존 v6.10.3도 같은 공식 설치 파일(`org.nodejs.node.pkg`)로 깔려 있었기 때문에 `/usr/local/bin/node`가 그대로 교체됐다.
+- 확인: `node -v` v22.20.0, `npm -v` 10.9.3, 프로젝트 폴더에서 `npm run typecheck` 통과.
+- 처음 `npm run typecheck`가 `ENOENT package.json`으로 실패한 것은 홈 폴더에서 실행했기 때문이다. 프로젝트 폴더에서 실행하면 된다.
+- Node 24 이상은 macOS 13.5 이상이 필요하므로 이 Mac에서는 22.x LTS를 유지한다.
