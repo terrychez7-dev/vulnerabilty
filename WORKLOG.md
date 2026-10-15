@@ -183,7 +183,7 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 
 ### 6.5 문서
 
-- `todo.md`: Vercel 배포 절차를 할 일 목록으로 정리했다. `todo.txt`는 같은 내용의 사본이다 (커밋하지 않음).
+- `todo.md`: Vercel 배포 절차를 할 일 목록으로 정리했다. 임시 사본이던 `todo.txt`는 지웠다.
 - `PRD.md` v1.1: 미분류 비율 현행화(F-AREA-03), 일정 진행 상태(9장), WAF 차단 리스크(11장), 수정 이력을 반영했다.
 
 ### 6.6 Vercel 배포 확인 (M3)
