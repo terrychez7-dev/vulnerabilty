@@ -17,7 +17,8 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 | KEV 실데이터 수집 | 성공 (카탈로그 2026.10.14, 1,745건) |
 | CVE 보강 실데이터 | 성공 (CVE-2024-3400 → CVSS 10, 네트워크 / 없는 CVE → `not_found`) |
 | Supabase 연동 | 2026-10-16 검증 완료 (6장) |
-| Claude 요약, Vercel Cron | **미검증** (Claude 키 미입력, Vercel 미배포) |
+| Vercel 배포, 동기화 API | 2026-10-16 검증 완료 (6.6) |
+| Claude 요약, Vercel Cron 자동 실행 | **미검증** (Claude 키 미입력, 첫 Cron 실행 전) |
 
 ## 2. PRD 대비 보완 내용
 
@@ -112,7 +113,10 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 2. ~~GitHub push~~: 완료 (6.1)
 3. ~~Supabase 구성 (M1)~~: 완료 (6.2)
 4. **최초 백필과 검증 (M2)**: KEV 저장과 CVE 보강은 완료했다 (6.3). 남은 일은 `ANTHROPIC_API_KEY`를 넣고 `npm run backfill`로 한국어 요약을 만든 뒤 품질을 샘플링하는 것이다.
-5. **Vercel 배포 (M3)**: 저장소를 Import하고 환경변수를 등록한다. 이후 Cron이 실행되는지(매일 한국 시간 08:00) 확인한다. 절차는 `todo.md`에 있다.
+5. **Vercel 배포 (M3)**: 배포와 동기화 API 확인은 완료했다 (6.6). 남은 일은 다음과 같다.
+   - Settings → Cron Jobs에서 `/api/sync` 등록 여부를 확인한다.
+   - 다음 날 08:00 KST 이후 `sync_runs`에 `trigger = cron` 기록이 생기는지 확인한다.
+   - 1주 시범 운영을 한다.
 6. **PRD 미결 사항 (12장)**: Vercel 플랜, 요약 모델과 `SUMMARY_DAYS`, 운영 도메인을 결정한다.
 
 ## 6. 2026-10-16 작업
@@ -179,5 +183,22 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 
 ### 6.5 문서
 
-- `todo.md`, `todo.txt`: Vercel 배포 절차를 할 일 목록으로 정리했다 (커밋하지 않음).
+- `todo.md`: Vercel 배포 절차를 할 일 목록으로 정리했다. `todo.txt`는 같은 내용의 사본이다 (커밋하지 않음).
 - `PRD.md` v1.1: 미분류 비율 현행화(F-AREA-03), 일정 진행 상태(9장), WAF 차단 리스크(11장), 수정 이력을 반영했다.
+
+### 6.6 Vercel 배포 확인 (M3)
+
+- 운영 주소: https://vulnerabilty-z4ua.vercel.app/
+- 사용자가 GitHub 저장소를 Import하고 환경변수 7개를 등록해 배포했다. `ANTHROPIC_API_KEY`는 아직 넣지 않았다.
+
+| 확인 항목 | 결과 |
+|---|---|
+| 기본 화면 (30일, 서버 OS·가상화) | 정상. 신규 35건 중 4건, 목록 4행 |
+| 365일, 전체 | 정상. 305건, 목록 305행 |
+| 응답 시간 (N-05) | 첫 요청 2.85초(콜드 스타트 포함), 이후 1.3초, 365일 전체 1.7초 |
+| 보안 헤더 (N-03) | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` 적용 |
+| `/api/sync` 토큰 없음 / 틀린 토큰 (F-SYNC-04) | 둘 다 `401` |
+| `/api/sync` 실제 토큰으로 수동 실행 (F-SYNC-10) | `200`, `ok`, 5.2초 (`sync_runs` id 4). 신규·변경 0건, 보강 대기 0건 |
+
+- 수동 실행이 통과했으므로 Vercel의 `CRON_SECRET`이 로컬 값과 같다는 것도 확인됐다.
+- Cron 등록 화면은 로그인이 필요해 확인하지 못했다. 첫 자동 실행은 2026-10-17 08:00 KST 예정이다.
