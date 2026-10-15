@@ -1,0 +1,131 @@
+# 작업 기록: KEV 인프라 취약점 대시보드
+
+- 작성일: 2026-10-15
+- 기준 문서: `PRD.md` (v1.0 초안)
+- 프로젝트 경로: `/Users/teslla/Desktop/CLAUDE/a/kev-dashboard-vercel`
+- 원격 저장소: https://github.com/terrychez7-dev/vulnerabilty (push 대기 중)
+
+## 1. 요약
+
+PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현이 이미 대부분 들어 있었다. 그래서 처음부터 새로 만들지 않고, 압축을 풀어 PRD 요구사항과 하나씩 대조한 뒤 빠진 기능과 버그를 보완했다.
+
+| 구분 | 결과 |
+|---|---|
+| 타입 검사 (`npm run typecheck`) | 통과 |
+| 프로덕션 빌드 (`npm run build`) | 통과 |
+| 보안 점검 (`npm audit`) | 취약점 0건 |
+| KEV 실데이터 수집 | 성공 (카탈로그 2026.10.14, 1,745건) |
+| CVE 보강 실데이터 | 성공 (CVE-2024-3400 → CVSS 10, 네트워크 / 없는 CVE → `not_found`) |
+| Supabase 연동, Claude 요약, Vercel Cron | **미검증** (키가 없어 실행하지 못함) |
+
+## 2. PRD 대비 보완 내용
+
+### 2.1 요약 재생성 버그 수정 (F-SUM-03, N-07)
+
+- **문제**: KEV 변경 감지 해시(`kev_hash`)에 영역 분류 결과가 포함되어 있었다. 분류 규칙만 바꿔도 모든 항목이 "변경"으로 처리되어, 최근 365일치 CVE 보강과 180일치 Claude 요약이 전부 다시 실행됐다. Claude API 비용이 크게 늘어나는 부분이다.
+- **수정**: 해시는 KEV 원본 필드로만 만든다. 동기화 때 영역은 따로 비교해서, 분류만 바뀐 항목은 `area`만 다시 저장하고 `updated_at`은 그대로 둔다.
+- **파일**: `lib/kev.ts`, `lib/sync.ts`
+
+### 2.2 동기화 이력 보강 (F-SYNC-08, F-SUM-05)
+
+- `sync_runs`에 컬럼 3개를 추가했다.
+  - `kev_source`: 실제로 받은 주소 (cisa.gov 또는 GitHub 미러)
+  - `enrich_errors`: CVE 보강 오류 건수
+  - `summary_errors`: 요약 실패 건수
+- 요약이나 보강이 실패한 실행은 상태를 `partial`로 남긴다.
+- `error` 칸에 실패 건수와 `ANTHROPIC_API_KEY` 누락 여부를 기록한다.
+- 이미 스키마를 적용한 DB에서도 실행되도록 `alter table ... add column if not exists` 구문을 넣었다.
+- **파일**: `lib/sync.ts`, `supabase/migrations/001_kev_schema.sql`
+
+### 2.3 동기화 API 인증 강화 (F-SYNC-04)
+
+- `Authorization: Bearer <CRON_SECRET>` 비교를 `timingSafeEqual`로 바꿨다. 타이밍 공격을 막기 위한 것이다.
+- **파일**: `app/api/sync/route.ts`
+
+### 2.4 영역 분류 점검 도구와 규칙 보완 (F-AREA-03)
+
+- `npm run area-report`를 새로 만들었다. DB 없이 KEV 피드를 직접 받아 아래 내용을 출력한다.
+  - 영역별 건수 (전체 기간 / 최근 N일)
+  - 미분류 비율과 목표(15% 이하) 충족 여부
+  - 미분류 상위 벤더·제품 25개
+- 규칙은 인프라 성격이 분명한 제품만 추가했다.
+
+| 영역 | 추가한 제품 |
+|---|---|
+| 네트워크 | LoadMaster, DD-WRT, Fortinet Multiple Products |
+| 운영·원격관리 | PaperCut |
+| 미들웨어·서버 SW | Roundcube, Gitea, Starlette, Kestra, ownCloud, Nextcloud, MLflow, Ray, LiteLLM, Langflow |
+
+- Fortinet은 "Multiple Products"로 한정했다. 벤더명 전체를 잡으면 FortiMail 같은 보안 제품까지 네트워크 영역으로 넘어가기 때문이다. 수정 후에도 보안 영역 건수(60건)는 그대로였다.
+- 결과:
+
+| 범위 | 수정 전 | 수정 후 |
+|---|---|---|
+| 전체 기간 미분류 | 394 / 1,745 (22.6%) | 353 / 1,745 (20.2%) |
+| 최근 90일 미분류 | 26 / 98 (26.5%) | 12 / 98 (12.2%) — 목표 충족 |
+
+- **파일**: `scripts/area-report.ts`, `lib/areas.ts`, `package.json`
+
+### 2.5 상세 화면 보완 (F-UI-07, F-UI-09, F-SUM-06)
+
+- 한국어 요약이 없으면 "한국어 요약 대기 중입니다. 아래 원문을 참고하세요."를 표시한다.
+- 지원 종료 제품 판단: 기존에는 설명문의 "end-of-life"만 봤다. 이제 조치 문구와 notes까지 보고, "end of service/support", "EoL", "discontinue use" 같은 표현도 잡는다. 해당하면 주의 색으로 "예 (교체·사용 중단 검토)"를 표시한다.
+- 영역을 바꿔 선택한 CVE가 목록에서 빠지면, 주소의 `?cve=` 값도 함께 지운다.
+- 영역이 '전체 인프라'일 때 표가 10열이 되므로, 결과 없음 안내 행도 10칸을 차지하도록 고쳤다 (2026-10-15 재점검).
+- **파일**: `components/Dashboard.tsx`
+
+### 2.6 의존성 보안 (N-04)
+
+- `next` 16.3.7에 high 등급 보안 권고가 있었다 (캐시 포이즈닝, SSRF 등).
+- 공개 후 2주가 지난 패치 버전 16.3.8(2026-09-30 공개)로 올렸다. 이후 `npm audit` 결과는 0건이다.
+
+### 2.7 문서
+
+- README에 Node.js 20.9 이상 요구, `area-report` 사용법, `sync_runs` 추가 컬럼 설명을 반영했다.
+
+## 3. PRD 요구사항 대응 현황
+
+| 영역 | 요구사항 | 상태 |
+|---|---|---|
+| 수집·동기화 | F-SYNC-01 ~ 10 | 구현 (01~04, 07, 08 보완) |
+| 영역 분류 | F-AREA-01 ~ 03 | 구현 (03 점검 도구 추가) |
+| 한국어 요약 | F-SUM-01 ~ 06 | 구현 (03, 05, 06 보완) |
+| 대시보드 | F-UI-01 ~ 12 | 구현 (07, 09 보완) |
+| 비기능 | N-01 ~ 09 | 구현 (04 패치 반영). N-05 성능은 실데이터 연결 후 확인 필요 |
+| v2 후보 | 자산 대조, 알림 등 | 범위 밖 (PRD 2.2, 10장) |
+
+## 4. 저장소 작업
+
+| 단계 | 내용 |
+|---|---|
+| `git init` | `kev-dashboard-vercel/`에 저장소 생성, 브랜치 `main` |
+| `.gitignore` | `.DS_Store` 추가 (macOS 자동 생성 파일 제외) |
+| 커밋 `63cfbba` | KEV 인프라 취약점 대시보드 v1 구현 (23개 파일) |
+| 원격 연결 | `origin` = https://github.com/terrychez7-dev/vulnerabilty.git |
+| 커밋 `69cc0c6` | 원격의 자동 생성 README 커밋(`fa325f3`)을 이력 보존하며 병합, 프로젝트 README 유지 |
+| push | **실패**: 이 Mac에 GitHub 인증 정보가 없음 |
+
+### push 방법
+
+```bash
+cd /Users/teslla/Desktop/CLAUDE/a/kev-dashboard-vercel
+git config --global credential.helper osxkeychain
+git push -u origin main
+```
+
+- Username: `terrychez7-dev`
+- Password: GitHub Personal Access Token (이 저장소에 `Contents: Read and write` 권한)
+
+## 5. 남은 일
+
+1. **Node.js 설치**: 이 Mac의 Node는 v6.10.3이다. 프로젝트에는 20.9 이상이 필요하다. 검증할 때는 임시로 받은 Node 22를 썼고, 시스템에는 설치하지 않았다.
+2. **GitHub push**: 위 4장 방법으로 진행한다.
+3. **Supabase 구성 (M1)**:
+   - 프로젝트를 만든다 (서울 리전 권장).
+   - `supabase/migrations/001_kev_schema.sql`을 실행한다.
+   - `.env.local`에 키를 입력한다.
+4. **최초 백필과 검증 (M2)**:
+   - `npm install` → `npm run backfill` → `npm run dev` 순서로 실행한다.
+   - 건수, 분류, 요약 품질을 샘플링해 확인한다.
+5. **Vercel 배포 (M3)**: 저장소를 Import하고 환경변수를 등록한다. 이후 Cron이 실행되는지(매일 한국 시간 08:00) 확인한다.
+6. **PRD 미결 사항 (12장)**: Vercel 플랜, 요약 모델과 `SUMMARY_DAYS`, 운영 도메인을 결정한다.
