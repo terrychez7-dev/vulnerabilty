@@ -111,9 +111,21 @@ export async function runSync(opts: SyncOptions): Promise<SyncResult> {
     await pool(pendingEnrich, 6, enrichBudget, async (k) => {
       results.push(await enrichCve(k.cve_id));
     });
+    // Supabase 앞단 WAF(Cloudflare)가 공격 재현 코드가 담긴 CVE 설명을 막을 수 있습니다.
+    // 묶음 저장이 실패하면 한 건씩 저장하고, 그래도 막히면 원문 설명만 비워 저장합니다.
+    const saveEnrichment = (rows: Enrichment | Enrichment[]) =>
+      db.from("cve_enrichment").upsert(rows, { onConflict: "cve_id" });
     for (let i = 0; i < results.length; i += 200) {
-      const { error } = await db.from("cve_enrichment").upsert(results.slice(i, i + 200), { onConflict: "cve_id" });
-      if (error) throw new Error(`cve_enrichment 저장 실패: ${error.message}`);
+      const chunk = results.slice(i, i + 200);
+      if (!(await saveEnrichment(chunk)).error) continue;
+      for (const r of chunk) {
+        if (!(await saveEnrichment(r)).error) continue;
+        r.description = null;
+        r.error = "원문 설명 저장 차단(WAF): CVE 레코드 원문을 직접 확인하세요.";
+        const { error } = await saveEnrichment(r);
+        if (error) throw new Error(`cve_enrichment 저장 실패 (${r.cve_id}): ${error.message.slice(0, 200)}`);
+        log(`WAF 차단으로 설명 없이 저장 ${r.cve_id}`);
+      }
     }
     enriched = results.length;
     const enrichErrors = results.filter((r) => r.status === "error").length;
