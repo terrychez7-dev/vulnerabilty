@@ -256,3 +256,22 @@ Supabase `sync_runs`를 읽기 키로 조회해 확인했다.
 - 충전은 당분간 하지 않기로 했다. 그동안 `.env.local`의 `ANTHROPIC_API_KEY`는 주석 처리해 둔다. 키가 있으면 로컬에서 실행할 때마다 요약을 시도했다가 실패한다. 키가 없으면 "ANTHROPIC_API_KEY 없음: 요약 생략"으로 건너뛴다.
 - Vercel에도 충전 전까지 키를 넣지 않는다. 그동안 매일 Cron은 KEV 저장과 CVE 보강만 하고, 화면은 영문 원문과 "요약 대기 중"으로 표시한다 (F-SUM-06).
 - 예상 비용(추정): 최초 백필 171건에 1~2달러, 이후 매일 신규 0~10건에 월 1달러 미만이다. 최소 충전 금액(5달러)이면 충분하다.
+
+### 7.3 중복 Vercel 프로젝트 정리
+
+- `b888968` push 후 GitHub 커밋 상태에서 같은 저장소에 Vercel 프로젝트 3개가 연결된 것을 확인했다. 저장소를 여러 번 Import하면서 생긴 것으로 보인다.
+
+| 프로젝트 | 배포 | 응답 | 조치 |
+|---|---|---|---|
+| `vulnerabilty-z4ua` | 성공 | `200` | 운영 프로젝트. 유지 |
+| `vulnerabilty-foud` | 성공 | `500` (환경변수 미등록으로 추정) | 삭제 |
+| `vulnerabilty` | 10/16부터 매번 빌드 실패 | — | 삭제 |
+
+- `vulnerabilty`의 실패 때문에 GitHub 커밋에 failure(✗)가 표시되고 있었다.
+- 두 중복 프로젝트에도 `vercel.json`의 Cron이 등록되지만 `CRON_SECRET`이 없어 `401`로 거절됐다. 데이터에는 영향이 없었다.
+- 사용자가 Vercel 대시보드에서 두 프로젝트를 삭제했다. 이 Mac에는 Vercel 로그인 정보가 없어 직접 삭제하지 못했다.
+- 삭제 후 확인 결과:
+  - `vulnerabilty-foud.vercel.app`: `404 DEPLOYMENT_NOT_FOUND`
+  - 운영 `vulnerabilty-z4ua.vercel.app`: `200`, 카탈로그 2026.10.16 표시
+  - 운영 `/api/sync`: 토큰 없이 호출하면 `401`
+- `vulnerabilty`는 배포된 주소가 없어 접속으로는 확인할 수 없다. 다음 push의 GitHub 커밋 상태에 Vercel 항목이 운영 하나만 남으면 정리가 끝난 것이다.
