@@ -275,3 +275,4 @@ Supabase `sync_runs`를 읽기 키로 조회해 확인했다.
   - 운영 `vulnerabilty-z4ua.vercel.app`: `200`, 카탈로그 2026.10.16 표시
   - 운영 `/api/sync`: 토큰 없이 호출하면 `401`
 - `vulnerabilty`는 배포된 주소가 없어 접속으로는 확인할 수 없다. 다음 push의 GitHub 커밋 상태에 Vercel 항목이 운영 하나만 남으면 정리가 끝난 것이다.
+- 확인 완료: 다음 push(`501167a`)의 GitHub 커밋 상태는 `success`였다. Vercel 항목은 운영 `vulnerabilty-z4ua` 하나뿐이었다. 두 중복 프로젝트가 모두 정리됐다.
