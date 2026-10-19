@@ -1,6 +1,6 @@
 # KEV 인프라 취약점 대시보드: Vercel 배포 할 일
 
-- 작성일: 2026-10-16 (배포 완료 후 갱신)
+- 작성일: 2026-10-16 (배포 완료 후 갱신, 2026-10-19 Cron 확인 반영)
 
 ## 현재 상태
 
@@ -10,6 +10,7 @@
 | GitHub | https://github.com/terrychez7-dev/vulnerabilty (`main`) |
 | Supabase | 스키마 적용 완료, 백필 완료 (KEV 1,745건, CVE 보강 305건) |
 | 동기화 API | 수동 실행 `ok` 확인 (`sync_runs` id 4) |
+| 자동 동기화(Cron) | 10/16~10/19 매일 08:03 KST `ok` (`sync_runs` id 5~8) |
 | 한국어 요약 | 0건 (`ANTHROPIC_API_KEY` 미입력) |
 
 ## 1. 프로젝트 가져오기 ✅
@@ -42,11 +43,11 @@
 - [x] 배포 완료: https://vulnerabilty-z4ua.vercel.app/
 - [x] 대시보드에 데이터가 바로 표시되는 것 확인
 
-## 4. 자동 동기화(Cron) 확인
+## 4. 자동 동기화(Cron) 확인 ✅
 
 - `vercel.json`에 따라 **매일 한국 시간 08:00**(UTC 23:00)에 `/api/sync`가 실행된다.
-- [ ] 프로젝트 **Settings → Cron Jobs**에 `/api/sync`(`0 23 * * *`)가 등록돼 있는지 확인
-- [ ] 2026-10-17 08:00 KST 이후 Supabase `sync_runs`에 `trigger = cron` 기록이 생기는지 확인
+- [x] 프로젝트 **Settings → Cron Jobs**에 `/api/sync`(`0 23 * * *`)가 등록돼 있는지 확인 (화면은 보지 않았고, 매일 `cron` 실행 기록으로 확인)
+- [x] Supabase `sync_runs`에 `trigger = cron` 기록이 생기는지 확인 (10/16부터 4회 연속 `ok`)
 
 > Hobby(무료) 플랜은 하루 1회만 실행되고, 실행 시각이 그 시간대 안에서 조금 밀릴 수 있다. 하루 여러 번(PRD 기준 6시간 주기) 돌리려면 Pro 플랜이 필요하다.
 
