@@ -42,16 +42,23 @@ export async function summarizeKo(input: SummaryInput): Promise<SummaryKo & { mo
   if (!key) throw new Error("ANTHROPIC_API_KEY 없음");
   const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+  };
+  // 워크스페이스에 속하지 않은 키는 대상 워크스페이스 ID를 함께 보내야 합니다.
+  const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID;
+  if (workspaceId) headers["anthropic-workspace-id"] = workspaceId;
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
+    headers,
     body: JSON.stringify({
       model,
-      max_tokens: 1500,
+      // 짧은 요약이므로 effort를 낮춰 비용을 줄이고, 생각에 쓰는 토큰 때문에 JSON이 잘리지 않게 여유를 둡니다.
+      max_tokens: 4000,
+      output_config: { effort: "low" },
       system: SYSTEM,
       messages: [{ role: "user", content: JSON.stringify(input) }],
     }),
@@ -61,7 +68,9 @@ export async function summarizeKo(input: SummaryInput): Promise<SummaryKo & { mo
     const body = await res.text().catch(() => "");
     throw new Error(`Claude API ${res.status}: ${body.slice(0, 200)}`);
   }
-  const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+  const data = (await res.json()) as { content?: { type: string; text?: string }[]; stop_reason?: string };
+  if (data.stop_reason === "max_tokens") throw new Error("요약 응답이 max_tokens에서 잘렸습니다.");
+  if (data.stop_reason === "refusal") throw new Error("요약 요청이 거절되었습니다 (refusal).");
   const text = (data.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
   const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const parsed = JSON.parse(json) as Partial<SummaryKo>;

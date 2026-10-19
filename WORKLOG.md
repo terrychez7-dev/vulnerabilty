@@ -19,7 +19,7 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 | Supabase 연동 | 2026-10-16 검증 완료 (6장) |
 | Vercel 배포, 동기화 API | 2026-10-16 검증 완료 (6.6) |
 | Vercel Cron 자동 실행 | 2026-10-19 검증 완료 (7장). 10/16~10/19 4회 연속 `ok` |
-| Claude 요약 | **미검증** (`ANTHROPIC_API_KEY` 미입력) |
+| Claude 요약 | **미검증**. 키 인증은 통과했으나 API 크레딧 부족으로 대기 중 (7.2) |
 
 ## 2. PRD 대비 보완 내용
 
@@ -113,7 +113,7 @@ PRD와 같은 폴더에 있던 `kev-dashboard-vercel.zip`에 PRD 기반 구현�
 1. ~~Node.js 설치~~: 완료 (6.7)
 2. ~~GitHub push~~: 완료 (6.1)
 3. ~~Supabase 구성 (M1)~~: 완료 (6.2)
-4. **최초 백필과 검증 (M2)**: KEV 저장과 CVE 보강은 완료했다 (6.3). 남은 일은 `ANTHROPIC_API_KEY`를 넣고 `npm run backfill`로 한국어 요약을 만든 뒤 품질을 샘플링하는 것이다.
+4. **최초 백필과 검증 (M2)**: KEV 저장과 CVE 보강은 완료했다 (6.3). 남은 일은 API 크레딧을 충전한 뒤 `npm run backfill`로 한국어 요약을 만들고 품질을 샘플링하는 것이다 (7.2).
 5. **Vercel 배포 (M3)**: 배포와 동기화 API 확인은 완료했다 (6.6). 남은 일은 다음과 같다.
    - ~~Cron 등록과 자동 실행 확인~~: 완료 (7장)
    - 1주 시범 운영을 한다 (2026-10-16 시작).
@@ -231,3 +231,28 @@ Supabase `sync_runs`를 읽기 키로 조회해 확인했다.
 - Vercel의 Settings → Cron Jobs 화면은 직접 보지 않았다. 다만 `trigger = cron` 실행이 매일 기록되고 있어 등록이 된 것으로 판단했다.
 - 모든 실행에 `ANTHROPIC_API_KEY 없음: 요약 생략`이 기록됐다. 한국어 요약은 키를 넣기 전까지 생성되지 않는다.
 - 이력의 id 2 `error`(10/16 00:09)는 최초 백필 때 WAF에 막힌 건이다. 6.3에서 수정했고, 바로 다음 실행인 id 3부터 정상이다.
+
+### 7.2 한국어 요약 시도와 크레딧 대기 (F-SUM-01)
+
+`.env.local`에 `ANTHROPIC_API_KEY`를 넣고 `npm run backfill`을 실행했다.
+
+| 순서 | 결과 | 원인과 조치 |
+|---|---|---|
+| 1. 첫 백필 | 요약 0건, 실패 60건, 대기 171건 | API 400: 워크스페이스에 속하지 않은 키라 `anthropic-workspace-id` 헤더가 필요했다. 키를 워크스페이스 키로 교체했다. 코드도 `ANTHROPIC_WORKSPACE_ID`를 받도록 고쳤다. |
+| 2. 새 키로 시험 호출 1건 | 실패 | API 400: `Your credit balance is too low`. 인증은 통과했다. API 크레딧(Claude 구독과 별도)이 없다. |
+
+- 처음 `npm run backfill`이 `ENOENT package.json`으로 실패한 것은 상위 폴더 `a/`에서 실행했기 때문이다. 프로젝트 폴더에서 실행하면 된다.
+- 요약 실패는 건별로 격리되어 KEV 저장과 CVE 보강에는 영향이 없었다 (F-SUM-05). 보강 대기는 0건이다.
+
+**코드 수정** (`lib/summarize.ts`, `.env.example`)
+
+- `ANTHROPIC_WORKSPACE_ID` 환경변수(선택)를 추가했다. 값이 있으면 `anthropic-workspace-id` 헤더를 보내고, 비어 있으면 기존과 같다.
+- `max_tokens`를 1500에서 4000으로 올리고 `output_config.effort`를 `low`로 지정했다. Sonnet 5.5는 답하기 전에 생각에도 토큰을 쓰므로, 기존 한도에서는 JSON이 잘릴 수 있었다. 짧은 요약이라 effort를 낮춰도 되고 비용도 줄어든다.
+- 응답이 `max_tokens`에서 잘리거나 `refusal`로 거절되면 그 이유를 실패 메시지에 남긴다.
+- 타입 검사는 통과했다. 실제 요약 생성은 크레딧이 없어 확인하지 못했다.
+
+**충전 전까지의 운영**
+
+- 충전은 당분간 하지 않기로 했다. 그동안 `.env.local`의 `ANTHROPIC_API_KEY`는 주석 처리해 둔다. 키가 있으면 로컬에서 실행할 때마다 요약을 시도했다가 실패한다. 키가 없으면 "ANTHROPIC_API_KEY 없음: 요약 생략"으로 건너뛴다.
+- Vercel에도 충전 전까지 키를 넣지 않는다. 그동안 매일 Cron은 KEV 저장과 CVE 보강만 하고, 화면은 영문 원문과 "요약 대기 중"으로 표시한다 (F-SUM-06).
+- 예상 비용(추정): 최초 백필 171건에 1~2달러, 이후 매일 신규 0~10건에 월 1달러 미만이다. 최소 충전 금액(5달러)이면 충분하다.

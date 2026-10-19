@@ -11,7 +11,7 @@
 | Supabase | 스키마 적용 완료, 백필 완료 (KEV 1,745건, CVE 보강 305건) |
 | 동기화 API | 수동 실행 `ok` 확인 (`sync_runs` id 4) |
 | 자동 동기화(Cron) | 10/16~10/19 매일 08:03 KST `ok` (`sync_runs` id 5~8) |
-| 한국어 요약 | 0건 (`ANTHROPIC_API_KEY` 미입력) |
+| 한국어 요약 | 0건. 워크스페이스 키 발급 완료, **API 크레딧 충전 대기** |
 
 ## 1. 프로젝트 가져오기 ✅
 
@@ -60,9 +60,11 @@
 
 ## 6. 나중에: 한국어 요약 켜기
 
-- [ ] console.anthropic.com에서 API 키 발급
-- [ ] 로컬 `.env.local`의 `ANTHROPIC_API_KEY`에 입력
-- [ ] 로컬에서 `npm run backfill` 실행
+- [x] console.anthropic.com에서 API 키 발급 (워크스페이스 키. 워크스페이스에 속하지 않은 키라면 `ANTHROPIC_WORKSPACE_ID`도 입력)
+- [x] 로컬 `.env.local`의 `ANTHROPIC_API_KEY`에 입력 (충전 전까지는 주석 처리해 둔다)
+- [ ] console.anthropic.com → Settings → **Billing**에서 API 크레딧 충전 (최소 5달러면 충분, Claude 구독과 별도)
+- [ ] `.env.local`의 `ANTHROPIC_API_KEY` 주석 해제
+- [ ] 프로젝트 폴더에서 `npm run backfill` 실행
   - 최근 180일치 약 165건의 요약을 한 번에 만든다.
   - Vercel 동기화는 실행 시간 제한 때문에 한 번에 약 40건씩만 처리한다.
 - [ ] Vercel **Settings → Environment Variables**에 `ANTHROPIC_API_KEY` 추가
